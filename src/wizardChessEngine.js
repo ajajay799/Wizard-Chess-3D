@@ -9,6 +9,9 @@ const THREE = THREE_NS;
 const SkeletonUtils = { clone: cloneSkeleton };
 
 export function initWizardChess() {
+    if (window.__WIZARD_CHESS_INITIALIZED) return;
+    window.__WIZARD_CHESS_INITIALIZED = true;
+
     // =========================================================================
     // Constants & Board Coordinates
     // =========================================================================
@@ -921,6 +924,116 @@ export function initWizardChess() {
 
     buildChessBoardGrid();
 
+    function buildProceduralCathedralFallback() {
+      const fallbackGroup = new THREE.Group();
+      const stoneMat = new THREE.MeshStandardMaterial({
+        color: 0x2a2724,
+        roughness: 0.78,
+        metalness: 0.05
+      });
+      const obsidianMat = new THREE.MeshStandardMaterial({
+        color: 0x11131a,
+        roughness: 0.24,
+        metalness: 0.32
+      });
+
+      // Abbey Flagstone Floor
+      const floorMesh = new THREE.Mesh(new THREE.PlaneGeometry(24, 38), stoneMat);
+      floorMesh.rotation.x = -Math.PI / 2;
+      floorMesh.position.y = 0;
+      floorMesh.receiveShadow = true;
+      fallbackGroup.add(floorMesh);
+
+      // Stepped Obsidian Altar Pedestal beneath the chessboard
+      const altarTop = new THREE.Mesh(new THREE.BoxGeometry(3.15, 0.74, 3.15), obsidianMat);
+      altarTop.position.set(0, 0.37, 0);
+      altarTop.castShadow = true;
+      altarTop.receiveShadow = true;
+      fallbackGroup.add(altarTop);
+
+      const altarStep = new THREE.Mesh(new THREE.BoxGeometry(3.85, 0.22, 3.85), stoneMat);
+      altarStep.position.set(0, 0.11, 0);
+      altarStep.receiveShadow = true;
+      fallbackGroup.add(altarStep);
+
+      // Flanking Gothic Nave Columns
+      const colGeo = new THREE.CylinderGeometry(0.45, 0.52, 9.5, 16);
+      for (const z of [-12, -8, -4, 4, 8, 12]) {
+        for (const x of [-4.6, 4.6]) {
+          const col = new THREE.Mesh(colGeo, stoneMat);
+          col.position.set(x, 4.75, z);
+          col.receiveShadow = true;
+          fallbackGroup.add(col);
+        }
+      }
+      scene.add(fallbackGroup);
+    }
+
+    function createSculptedProceduralPiece(type, color) {
+      const grp = new THREE.Group();
+      const mat = color === 'w' ? whitePieceMat : blackPieceMat;
+
+      // 1. Sculpted Lathe Pedestal & Torso (normalized to unit scale before BOARD_SQ_SIZE scaling)
+      const hMap = { pawn: 1.05, rook: 1.28, knight: 1.38, bishop: 1.42, queen: 1.56, king: 1.68 };
+      const h = hMap[type] || 1.25;
+      const pts = [
+        new THREE.Vector2(0.0, 0.0),
+        new THREE.Vector2(0.42, 0.0),
+        new THREE.Vector2(0.42, 0.08),
+        new THREE.Vector2(0.35, 0.14),
+        new THREE.Vector2(0.32, 0.22),
+        new THREE.Vector2(0.22, h * 0.52),
+        new THREE.Vector2(0.28, h * 0.68),
+        new THREE.Vector2(0.20, h * 0.78),
+        new THREE.Vector2(0.0, h * 0.82)
+      ];
+      const latheGeo = new THREE.LatheGeometry(pts, 20);
+      const bodyMesh = new THREE.Mesh(latheGeo, mat);
+      bodyMesh.castShadow = true;
+      bodyMesh.receiveShadow = true;
+      grp.add(bodyMesh);
+
+      // 2. Golden Collar Ring
+      const collarMesh = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.032, 10, 24), goldTrimMat);
+      collarMesh.rotation.x = Math.PI / 2;
+      collarMesh.position.y = h * 0.68;
+      grp.add(collarMesh);
+
+      // 3. Piece-Specific Head / Crown / Mitre / Crested Helm
+      if (type === 'king' || type === 'queen') {
+        const crown = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.18, 0.22, 12), goldTrimMat);
+        crown.position.y = h * 0.88;
+        grp.add(crown);
+        if (type === 'king') {
+          const crossV = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.22, 0.06), goldTrimMat);
+          crossV.position.y = h * 1.04;
+          const crossH = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.06, 0.06), goldTrimMat);
+          crossH.position.y = h * 1.06;
+          grp.add(crossV, crossH);
+        }
+      } else if (type === 'rook') {
+        const turret = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.24, 0.24, 8), mat);
+        turret.position.y = h * 0.86;
+        grp.add(turret);
+      } else if (type === 'knight') {
+        const head = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.42, 8), mat);
+        head.rotation.x = Math.PI * 0.32;
+        head.position.set(0, h * 0.86, 0.08);
+        grp.add(head);
+      } else {
+        const helm = new THREE.Mesh(new THREE.SphereGeometry(0.21, 16, 14), mat);
+        helm.position.y = h * 0.86;
+        grp.add(helm);
+      }
+
+      // 4. Forged Steel Greatsword / Halberd Accent
+      const blade = new THREE.Mesh(new THREE.BoxGeometry(0.04, h * 0.65, 0.08), forgedSteelMat);
+      blade.position.set(0.22, h * 0.52, 0.18);
+      grp.add(blade);
+
+      return grp;
+    }
+
     // =========================================================================
     // Native Baked Wall/Column Stone (Original Ashlar) & Floor Stone (Abbey Flagstone)
     // =========================================================================
@@ -1161,34 +1274,172 @@ export function initWizardChess() {
       const loaderText = document.getElementById('loader-text');
       const totalItems = PIECE_TYPES.length + 1;
 
-      async function loadGltfModel(baseName) {
-        let arrayBuffer = null;
-        try {
-          const resB64 = await fetch(`./assets/glb/${baseName}.glb.gz.b64`);
-          if (resB64.ok) {
-            const b64Text = (await resB64.text()).trim();
-            if (b64Text.length > 64) {
-              const binStr = atob(b64Text);
-              const gzBytes = new Uint8Array(binStr.length);
-              for (let i = 0; i < binStr.length; i++) {
-                gzBytes[i] = binStr.charCodeAt(i);
-              }
-              const ds = new DecompressionStream('gzip');
-              const stream = new Blob([gzBytes]).stream().pipeThrough(ds);
-              arrayBuffer = await new Response(stream).arrayBuffer();
+      const REMOTE_ASSET_ORIGIN = 'https://ais-pre-y6z26lkpjlukqv57ko7s6n-731688609263.asia-southeast1.run.app';
+
+      function withTimeout(promise, ms, label) {
+        return new Promise((resolve, reject) => {
+          const timer = setTimeout(() => reject(new Error(`Timeout loading ${label}`)), ms);
+          promise.then(
+            (val) => {
+              clearTimeout(timer);
+              resolve(val);
+            },
+            (err) => {
+              clearTimeout(timer);
+              reject(err);
+            }
+          );
+        });
+      }
+
+      function loadB64ViaScriptTag(baseName) {
+        return new Promise((resolve) => {
+          if (window.__WIZARD_CHESS_B64_ASSETS && window.__WIZARD_CHESS_B64_ASSETS[baseName]) {
+            resolve(window.__WIZARD_CHESS_B64_ASSETS[baseName]);
+            return;
+          }
+          const candidatePaths = [
+            `./assets/glb/${baseName}.glb.b64.js`,
+            `./public/assets/glb/${baseName}.glb.b64.js`,
+            `${REMOTE_ASSET_ORIGIN}/assets/glb/${baseName}.glb.b64.js`
+          ];
+          let idx = 0;
+          function tryNext() {
+            if (idx >= candidatePaths.length) {
+              resolve(null);
+              return;
+            }
+            const script = document.createElement('script');
+            script.src = candidatePaths[idx++];
+            script.async = true;
+            const scriptTimer = setTimeout(() => {
+              script.onload = null;
+              script.onerror = null;
+              script.remove();
+              tryNext();
+            }, 4500);
+            script.onload = () => {
+              clearTimeout(scriptTimer);
+              script.remove();
+              const data = window.__WIZARD_CHESS_B64_ASSETS?.[baseName] || null;
+              if (data) resolve(data);
+              else tryNext();
+            };
+            script.onerror = () => {
+              clearTimeout(scriptTimer);
+              script.remove();
+              tryNext();
+            };
+            document.head.appendChild(script);
+          }
+          tryNext();
+        });
+      }
+
+      async function decodeGzipBase64ToBuffer(b64Text) {
+        const clean = String(b64Text || '').replace(/\s+/g, '');
+        if (clean.length <= 64) return null;
+        const binStr = atob(clean);
+        const gzBytes = new Uint8Array(binStr.length);
+        for (let i = 0; i < binStr.length; i++) {
+          gzBytes[i] = binStr.charCodeAt(i);
+        }
+        const ds = new DecompressionStream('gzip');
+        const stream = new Blob([gzBytes]).stream().pipeThrough(ds);
+        if (typeof stream.getReader === 'function') {
+          const reader = stream.getReader();
+          const chunks = [];
+          let totalLen = 0;
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            if (value) {
+              chunks.push(value);
+              totalLen += value.byteLength;
             }
           }
-        } catch (e) {}
+          const out = new Uint8Array(totalLen);
+          let offset = 0;
+          for (const chunk of chunks) {
+            out.set(chunk, offset);
+            offset += chunk.byteLength;
+          }
+          return out.buffer;
+        }
+        return await new Response(stream).arrayBuffer();
+      }
 
+      async function loadGltfModel(baseName) {
+        let arrayBuffer = null;
+
+        // 1. Check if already preloaded in memory
+        if (window.__WIZARD_CHESS_B64_ASSETS?.[baseName]) {
+          try {
+            arrayBuffer = await withTimeout(
+              decodeGzipBase64ToBuffer(window.__WIZARD_CHESS_B64_ASSETS[baseName]),
+              4500,
+              `${baseName}:decode-mem`
+            );
+          } catch (e) {}
+        }
+
+        // 2. Over HTTP/HTTPS, fetch .glb.gz.b64 from local or remote asset paths
+        if (!arrayBuffer && window.location.protocol !== 'file:') {
+          const fetchCandidates = [
+            `./assets/glb/${baseName}.glb.gz.b64`,
+            `./public/assets/glb/${baseName}.glb.gz.b64`,
+            `${REMOTE_ASSET_ORIGIN}/assets/glb/${baseName}.glb.gz.b64`
+          ];
+          for (const url of fetchCandidates) {
+            try {
+              const resB64 = await withTimeout(fetch(url), 5000, `${baseName}:fetch`);
+              if (resB64.ok) {
+                const text = await resB64.text();
+                if (!text.trim().startsWith('<!')) {
+                  arrayBuffer = await withTimeout(
+                    decodeGzipBase64ToBuffer(text),
+                    4500,
+                    `${baseName}:decode`
+                  );
+                  if (arrayBuffer) break;
+                }
+              }
+            } catch (e) {}
+          }
+        }
+
+        // 3. On file:// protocol (or if fetch failed), load via classic <script> wrapper (exempt from file:// CORS)
         if (!arrayBuffer) {
-          const resGlb = await fetch(`./assets/glb/${baseName}.glb`);
+          try {
+            const b64FromScript = await loadB64ViaScriptTag(baseName);
+            if (b64FromScript) {
+              arrayBuffer = await withTimeout(
+                decodeGzipBase64ToBuffer(b64FromScript),
+                4500,
+                `${baseName}:decode-script`
+              );
+            }
+          } catch (e) {}
+        }
+
+        // 4. Final fallback: raw .glb fetch
+        if (!arrayBuffer && window.location.protocol !== 'file:') {
+          const resGlb = await withTimeout(fetch(`./assets/glb/${baseName}.glb`), 4500, `${baseName}:glb`);
           if (!resGlb.ok) throw new Error(`Failed to fetch ${baseName}`);
           arrayBuffer = await resGlb.arrayBuffer();
         }
 
-        return new Promise((resolve, reject) => {
-          gltfLoader.parse(arrayBuffer, './assets/glb/', (gltf) => resolve(gltf), (err) => reject(err));
-        });
+        if (!arrayBuffer) {
+          throw new Error(`Asset ${baseName} unavailable`);
+        }
+
+        return withTimeout(
+          new Promise((resolve, reject) => {
+            gltfLoader.parse(arrayBuffer, './assets/glb/', (gltf) => resolve(gltf), (err) => reject(err));
+          }),
+          5000,
+          `${baseName}:parse`
+        );
       }
       let loadedCount = 0;
 
@@ -1232,9 +1483,9 @@ export function initWizardChess() {
       });
       const charredEmberLogsShader = createCharredEmberLogsShader();
 
-      // 1. Load Native Full-Height Cathedral Environment (shifted by z = -0.65 so the Obsidian Altar is centered at 0, 0.7215, 0)
+      // 1. Load Native Full-Height Cathedral Environment & 6 Sculpted Piece Models in parallel
       const maxAniso = renderer.capabilities.getMaxAnisotropy() || 8;
-      await new Promise((resolve) => {
+      const cathedralTask = new Promise((resolve) => {
         loadGltfModel('option8_cathedral').then(
           (gltf) => {
             const cathedralRoot = gltf.scene;
@@ -1384,49 +1635,55 @@ export function initWizardChess() {
             resolve();
           },
           (err) => {
-            console.warn('Cathedral GLB load warning:', err);
+            console.warn('Cathedral GLB load warning, building procedural Sanctum architecture:', err);
+            buildProceduralCathedralFallback();
             bumpProgress('Cathedral Loaded');
             resolve();
           }
         );
       });
 
-      // 2. Load 6 Sculpted & Rigged Chess Piece Models (shared between White & Black with PBR materials)
-      for (const type of PIECE_TYPES) {
-        await new Promise((resolve) => {
-          loadGltfModel(`${type}_white`).then(
-            (gltf) => {
-              const toRemove = [];
-              gltf.scene.traverse((child) => {
-                const nm = child.name || '';
-                if (nm.includes('Icosphere') || nm.includes('glTF_not_exported')) {
-                  child.visible = false;
-                  toRemove.push(child);
+      // 2. Load 6 Sculpted & Rigged Chess Piece Models in parallel
+      const pieceTasks = PIECE_TYPES.map(
+        (type) =>
+          new Promise((resolve) => {
+            loadGltfModel(`${type}_white`).then(
+              (gltf) => {
+                const toRemove = [];
+                gltf.scene.traverse((child) => {
+                  const nm = child.name || '';
+                  if (nm.includes('Icosphere') || nm.includes('glTF_not_exported')) {
+                    child.visible = false;
+                    toRemove.push(child);
+                  }
+                });
+                for (const rem of toRemove) {
+                  if (rem.parent) rem.parent.remove(rem);
                 }
-              });
-              for (const rem of toRemove) {
-                if (rem.parent) rem.parent.remove(rem);
+
+                const tpl = {
+                  scene: gltf.scene,
+                  animations: gltf.animations || []
+                };
+                pieceTemplates[`${type}_w`] = tpl;
+                pieceTemplates[`${type}_b`] = tpl;
+                bumpProgress(`Summoned ${type.toUpperCase()} Statue...`);
+                resolve();
+              },
+              (err) => {
+                console.warn(`Piece load warning (${type}):`, err);
+                bumpProgress(`Loaded ${type}`);
+                resolve();
               }
+            );
+          })
+      );
 
-              const tpl = {
-                scene: gltf.scene,
-                animations: gltf.animations || []
-              };
-              pieceTemplates[`${type}_w`] = tpl;
-              pieceTemplates[`${type}_b`] = tpl;
-              bumpProgress(`Summoned ${type.toUpperCase()} Statue...`);
-              resolve();
-            },
-            (err) => {
-              console.warn(`Piece load warning (${type}):`, err);
-              bumpProgress(`Loaded ${type}`);
-              resolve();
-            }
-          );
-        });
+      try {
+        await Promise.all([cathedralTask, ...pieceTasks]);
+      } finally {
+        document.getElementById('loading-overlay')?.classList.add('hidden');
       }
-
-      document.getElementById('loading-overlay')?.classList.add('hidden');
     }
 
     // =========================================================================
@@ -1474,7 +1731,10 @@ export function initWizardChess() {
 
     // Multiplayer State
     let roomCode = null;
-    let playerToken = localStorage.getItem('wizard_chess_token') || '';
+    let playerToken = '';
+    try {
+      playerToken = localStorage.getItem('wizard_chess_token') || '';
+    } catch (e) {}
     let roomEventSource = null;
     let roomPollTimer = null;
     let appliedMoveSeq = 0;
@@ -1568,10 +1828,7 @@ export function initWizardChess() {
         }
         activeMixers.push(mixer);
       } else {
-        root = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.1, 0.14, 0.42, 16),
-          color === 'w' ? whitePieceMat : blackPieceMat
-        );
+        root = createSculptedProceduralPiece(type, color);
       }
 
       const worldPos = boardToWorld(r, c);
@@ -4519,7 +4776,9 @@ export function initWizardChess() {
       resetChessBoard(true);
       startMultiplayerSync(roomCode);
       applyRemoteRoomState(data.room);
-      window.history.replaceState({}, '', `?room=${roomCode}`);
+      try {
+        window.history.replaceState({}, '', `?room=${roomCode}`);
+      } catch (e) {}
     }
 
     async function joinMultiplayerRoom(codeInput) {
@@ -4584,7 +4843,9 @@ export function initWizardChess() {
       resetChessBoard(true);
       startMultiplayerSync(roomCode);
       applyRemoteRoomState(data.room);
-      window.history.replaceState({}, '', `?room=${roomCode}`);
+      try {
+        window.history.replaceState({}, '', `?room=${roomCode}`);
+      } catch (e) {}
       closeLobbyModal();
       return true;
     }
@@ -4795,7 +5056,9 @@ export function initWizardChess() {
       gameMode = 'single';
       roomCode = null;
       playerColor = selectedSpColor;
-      window.history.replaceState({}, '', window.location.pathname);
+      try {
+        window.history.replaceState({}, '', window.location.pathname);
+      } catch (e) {}
       closeLobbyModal();
       resetChessBoard(true);
     });

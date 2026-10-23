@@ -81,3 +81,16 @@ test('All 7 compressed 3D assets (.glb.gz.b64) decode and gunzip to valid glTF 2
     assert.equal(totalLen, glbBuf.length, `Mismatched glTF byte length for ${name}`);
   }
 });
+
+test('Standalone file:// HTML loader and non-CORS script assets are present', () => {
+  const indexHtml = fs.readFileSync(path.join(ROOT, 'index.html'), 'utf-8');
+  assert.ok(indexHtml.includes('bootStandaloneBundle'), 'index.html should include standalone file:// loader');
+  assert.ok(fs.existsSync(path.join(ROOT, 'public/standalone-app.js')), 'Missing public/standalone-app.js');
+  assert.ok(fs.existsSync(path.join(ROOT, 'public/standalone-styles.css')), 'Missing public/standalone-styles.css');
+
+  for (const name of ['option8_cathedral', 'pawn_white', 'rook_white', 'knight_white', 'bishop_white', 'queen_white', 'king_white']) {
+    const jsAssetPath = path.join(ROOT, 'public/assets/glb', `${name}.glb.b64.js`);
+    assert.ok(fs.existsSync(jsAssetPath), `Missing file:// script wrapper ${jsAssetPath}`);
+  }
+});
+

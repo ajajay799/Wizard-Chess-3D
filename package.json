@@ -4,10 +4,10 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "predev": "[ -d node_modules/.bin ] || bun install || npm install",
+    "predev": "([ -d node_modules/.bin ] || bun install || npm install) && node scripts/build-standalone.mjs",
     "dev": "vite --port=3000 --host=0.0.0.0",
-    "prebuild": "[ -d node_modules/.bin ] || bun install || npm install",
-    "build": "vite build",
+    "prebuild": "([ -d node_modules/.bin ] || bun install || npm install) && node scripts/build-standalone.mjs",
+    "build": "vite build && node scripts/postbuild-inline.mjs",
     "prelint": "[ -d node_modules/.bin ] || bun install || npm install",
     "lint": "tsc --noEmit",
     "preview": "vite preview"

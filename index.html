@@ -49,6 +49,59 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="module" src="/src/main.tsx"></script>
+  <script type="module" src="/src/main.tsx" onerror="window.__bootWizardChessStandalone && window.__bootWizardChessStandalone()"></script>
+  <script>
+    (function () {
+      var REMOTE_ORIGIN = 'https://ais-pre-y6z26lkpjlukqv57ko7s6n-731688609263.asia-southeast1.run.app';
+      function bootStandaloneBundle() {
+        if (window.__WIZARD_CHESS_STANDALONE_BOOTED || window.__WIZARD_CHESS_INITIALIZED) return;
+        var root = document.getElementById('root');
+        if (root && root.children.length > 0) return;
+        window.__WIZARD_CHESS_STANDALONE_BOOTED = true;
+
+        var cssPaths = [
+          './standalone-styles.css',
+          './public/standalone-styles.css',
+          './src/styles.css',
+          REMOTE_ORIGIN + '/standalone-styles.css'
+        ];
+        function tryCss(idx) {
+          if (idx >= cssPaths.length) return;
+          var link = document.createElement('link');
+          link.rel = 'stylesheet';
+          link.href = cssPaths[idx];
+          link.onerror = function () {
+            if (link.parentNode) link.parentNode.removeChild(link);
+            tryCss(idx + 1);
+          };
+          document.head.appendChild(link);
+        }
+        tryCss(0);
+
+        var jsPaths = [
+          './standalone-app.js',
+          './public/standalone-app.js',
+          './dist/standalone-app.js',
+          REMOTE_ORIGIN + '/standalone-app.js'
+        ];
+        function tryJs(idx) {
+          if (idx >= jsPaths.length) return;
+          var s = document.createElement('script');
+          s.src = jsPaths[idx];
+          s.onerror = function () {
+            if (s.parentNode) s.parentNode.removeChild(s);
+            tryJs(idx + 1);
+          };
+          document.body.appendChild(s);
+        }
+        tryJs(0);
+      }
+      window.__bootWizardChessStandalone = bootStandaloneBundle;
+
+      if (window.location.protocol === 'file:') {
+        bootStandaloneBundle();
+      }
+    })();
+  </script>
 </body>
 </html>
