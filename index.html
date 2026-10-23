@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script>
+    (function () {
+      try {
+        var currentFetch = window.fetch ? window.fetch.bind(window) : undefined;
+        var desc = Object.getOwnPropertyDescriptor(window, 'fetch') ||
+                   Object.getOwnPropertyDescriptor(Window.prototype, 'fetch');
+        if (!desc || (!desc.writable && !desc.set && desc.configurable !== false)) {
+          Object.defineProperty(window, 'fetch', {
+            configurable: true,
+            enumerable: true,
+            get: function () {
+              return currentFetch;
+            },
+            set: function (fn) {
+              if (typeof fn === 'function') {
+                currentFetch = fn;
+              }
+            }
+          });
+        }
+      } catch (_) {}
+
+      window.addEventListener(
+        'error',
+        function (event) {
+          var msg = String((event && event.message) || '');
+          var file = String((event && event.filename) || '');
+          if (
+            msg.indexOf('Cannot set property fetch') !== -1 ||
+            file.indexOf('chrome-extension://') === 0
+          ) {
+            event.stopImmediatePropagation();
+            event.preventDefault();
+          }
+        },
+        true
+      );
+    })();
+  </script>
+  <title>Wizard Chess 3D</title>
+  <meta name="description" content="Interactive 3D Gothic Cathedral Wizard Chess with sculpted stone pieces, cinematic melee captures, stone shatter physics, and single-player AI." />
+  <meta property="og:title" content="Wizard Chess — 3D Sanctum Edition" />
+  <meta property="og:description" content="Interactive 3D Gothic Cathedral Wizard Chess with sculpted stone pieces, cinematic melee captures, stone shatter physics, and single-player AI." />
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>
